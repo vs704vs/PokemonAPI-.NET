@@ -195,3 +195,81 @@ namespace GPTool.File_API.Controllers
         public List<FolderDetails> Folders { get; set; }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+namespace GPTool.File_API.Controllers
+{
+    [ApiController]
+    [Route("api/docs")]
+    public class DocsController : ControllerBase
+    {
+        private readonly IConfiguration _config;
+        private readonly IWebHostEnvironment _webHostEnvironment;
+
+        public DocsController(IConfiguration config, IWebHostEnvironment webHostEnvironment)
+        {
+            _config = config;
+            _webHostEnvironment = webHostEnvironment;
+        }
+
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [HttpPost("FileUpload")]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<bool>> FileUploadForLoadBudget([FromQuery] string folderPath)
+        {
+            // Get the uploaded file
+            var uploadedFile = HttpContext.Request.Form.Files.Count > 0 ? HttpContext.Request.Form.Files[0] : null;
+
+            if (uploadedFile == null)
+            {
+                return BadRequest("No file uploaded.");
+            }
+
+            // Ensure folderPath is valid
+            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+            {
+                return BadRequest("Invalid or non-existent folder path.");
+            }
+
+            try
+            {
+                // Combine folder path and file name
+                string filename = Path.Combine(folderPath, uploadedFile.FileName);
+
+                // If the file doesn't already exist, upload it
+                if (!System.IO.File.Exists(filename))
+                {
+                    using (Stream fileStream = new FileStream(filename, FileMode.Create))
+                    {
+                        await uploadedFile.CopyToAsync(fileStream);
+                    }
+                }
+                else
+                {
+                    return BadRequest("File already exists.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Internal server error: {ex.Message}");
+            }
+
+            return Ok(true);
+        }
+    }
+}
